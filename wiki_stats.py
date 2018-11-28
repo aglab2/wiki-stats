@@ -21,16 +21,16 @@ class WikiGraph:
 
         with open(filename, encoding='utf8') as f:
             initdesc = f.readline().split()
-            n = int(initdesc[0])
-            _nlinks = int(initdesc[1])
+            self._n = int(initdesc[0])
+            self._nlinks = int(initdesc[1])
             
             self._titles = []
-            self._sizes = array.array('L', [0]*n)
+            self._sizes = array.array('L', [0]*_n)
             self._links = array.array('L', [0]*_nlinks)
-            self._redirect = array.array('B', [0]*n)
-            self._offset = array.array('L', [0]*(n+1))
+            self._redirect = array.array('B', [0]*_n)
+            self._offset = array.array('L', [0]*(_n+1))
 
-            for i in range(n):
+            for i in range(self._n):
                 title = f.readline()
                 titledesc = f.readline().split()
 
@@ -70,6 +70,45 @@ def hist(fname, data, bins, xlabel, ylabel, title, facecolor='green', alpha=0.5,
     plt.clf()
     # TODO: нарисовать гистограмму и сохранить в файл
 
+def get_array_stats(wg, arr):
+    stats = dict()
+
+    stats['avg']      = statistics.mean(arr)
+    stats['maxval']   = max(arr)
+    stats['maxcount'] = arr.count(stats['maxval'])
+    maxindex          = arr.index(stats['maxval'])
+    stats['maxtitle'] = wg.get_title(maxindex)
+    
+    stats['minval']   = min(arr)
+    stats['mincount'] = arr.count(stats['minval'])
+    minindex          = arr.index(stats['minval'])
+    stats['mintitle'] = wg.get_title(minindex)
+
+    return stats
+
+def get_links_from_stats(wg):
+    linksfrom = array.array('L', [wg.get_number_of_links_from(i) for i in range(wg.get_number_of_pages())])
+    return get_array_stats(wg, linksfrom)
+
+def get_links_to_stats(wg):
+    linksto = array.array('L', [0]*wg.get_number_of_pages())
+    for i in range(wg.get_number_of_pages()):
+        if not wg.is_redirect(i):
+            links = wg.get_links_from(i)
+            for link in links:
+                linksto[link] += 1
+
+    return get_array_stats(wg, linksto)
+
+def get_redirects_to_stats(wg):
+    redirectsto = array.array('L', [0]*wg.get_number_of_pages())
+    for i in range(wg.get_number_of_pages()):
+        if wg.is_redirect(i):
+            links = wg.get_links_from(i)
+            for link in links:
+                redirectsto[link] += 1
+
+    return get_array_stats(wg, redirectsto)
 
 if __name__ == '__main__':
 
@@ -84,4 +123,16 @@ if __name__ == '__main__':
     wg = WikiGraph()
     wg.load_from_file(sys.argv[1])
 
-    # TODO: статистика и гистограммы
+    linksfrom   = get_links_from_stats(wg)
+    linksto     = get_links_to_stats(wg)
+    redirectsto = get_redirects_to_stats(wg)
+    
+    print("Количество статей с максимальным количеством внешних ссылок: ", linksfrom['maxcount'])
+    print("Статья с наибольшим количеством внешних ссылок: ", linksfrom['maxtitle'])
+    print("Среднее количество внешних ссылок на статью: ", linksto['avg'])
+    print("Минимальное количество перенаправлений на статью: ", redirectsto['minval'])
+    print("Количество статей с минимальным количеством внешних перенаправлений: ", redirectsto['mincount'])
+    print("Максимальное количество перенаправлений на статью: ", redirectsto['maxval'])
+    print("Количество статей с максимальным количеством внешних перенаправлений: ", redirectsto['maxcount'])
+    print("Статья с наибольшим количеством внешних перенаправлений: ", redirectsto['maxtitle'])
+    print("Среднее количество внешних перенаправлений на статью: ", redirectsto['avg'])
